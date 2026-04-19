@@ -244,7 +244,7 @@ def setup_handlers(application: Application):
                 CallbackQueryHandler(select_usdt_withdraw_wallet_type, pattern='^usdt_withdraw_')
             ],
             ASKING_WITHDRAW_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, receiveWithdrawAmount)],
-            ASKING_WITHDRAW_ACCOUNT_DETAILS: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_withdraw_account_details],
+            ASKING_WITHDRAW_ACCOUNT_DETAILS: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_withdraw_account_details)],
         },
         fallbacks=[CommandHandler("cancel", cancelWithdraw), CallbackQueryHandler(cancelWithdraw, pattern='^cancel_withdraw$'), CallbackQueryHandler(go_to_main_menu, pattern='^main_menu$')]
     )
