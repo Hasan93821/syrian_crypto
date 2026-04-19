@@ -1,11 +1,11 @@
 import psycopg2
+import os
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes, ConversationHandler
 from telegram.helpers import escape_markdown
 from datetime import datetime
 import json
-import os
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 ASKING_FULL_NAME, ASKING_ADDRESS, ASKING_PHONE_NUMBER, CONFIRM_EDIT = range(4)
 
 # --- إعدادات الاتصال بـ PostgreSQL ---
-DATABASE_URL = os.environ.get('DATABASE_URL')  # Render يعطيك هذا تلقائياً
+DATABASE_URL = os.environ.get('DATABASE_URL')
 
 def get_db_connection():
     """إنشاء اتصال بقاعدة البيانات."""
@@ -53,7 +53,7 @@ def init_db():
     logger.info("تم تهيئة قاعدة البيانات PostgreSQL.")
 
 
-def add_user(user_id: int, full_name: str, address: str, phone_number: str):
+def addUser(user_id: int, full_name: str, address: str, phone_number: str):
     """
     يضيف مستخدماً جديداً إلى قاعدة البيانات.
     """
@@ -69,7 +69,7 @@ def add_user(user_id: int, full_name: str, address: str, phone_number: str):
     logger.info(f"تم إضافة المستخدم {user_id} إلى قاعدة البيانات.")
 
 
-def get_user_data(user_id: int) -> dict | None:
+def getUserData(user_id: int) -> dict | None:
     """
     يسترجع بيانات المستخدم من قاعدة البيانات.
     """
@@ -93,7 +93,7 @@ def get_user_data(user_id: int) -> dict | None:
     return None
 
 
-def get_all_users_data() -> dict:
+def getAllUsersData() -> dict:
     """
     يسترجع بيانات جميع المستخدمين من قاعدة البيانات.
     """
@@ -126,7 +126,7 @@ ALLOWED_USER_COLUMNS = {
 }
 
 
-def update_user_data(user_id: int, **kwargs):
+def updateUserData(user_id: int, **kwargs):
     """
     يحدث بيانات مستخدم موجود في قاعدة البيانات.
     """
@@ -148,10 +148,10 @@ def update_user_data(user_id: int, **kwargs):
         cursor.execute(f"UPDATE users SET {', '.join(set_clause)} WHERE user_id = %s", tuple(values))
         conn.commit()
     conn.close()
-    logger.info(f"تم تحديث بيانات المستخدم {user_id}.")
+        logger.info(f"تم تحديث بيانات المستخدم {user_id}.")
 
 
-def update_wallet_balance(user_id: int, amount: float):
+def updateWalletBalance(user_id: int, amount: float):
     """
     يحدث رصيد المحفظة للمستخدم.
     """
@@ -163,7 +163,7 @@ def update_wallet_balance(user_id: int, amount: float):
     logger.info(f"تم تحديث رصيد المحفظة للمستخدم {user_id} بالمبلغ {amount}.")
 
 
-def update_investment_balance(user_id: int, amount: float):
+def updateInvestmentBalance(user_id: int, amount: float):
     """
     يحدث رصيد الاستثمار للمستخدم.
     """
@@ -175,7 +175,7 @@ def update_investment_balance(user_id: int, amount: float):
     logger.info(f"تم تحديث رصيد الاستثمار للمستخدم {user_id} بالمبلغ {amount}.")
 
 
-def update_subscription_status(user_id: int, is_subscribed: bool, plan_name: str = None, expiry_date: str = None):
+def updateSubscriptionStatus(user_id: int, is_subscribed: bool, plan_name: str = None, expiry_date: str = None):
     """
     يحدث حالة اشتراك المستخدم.
     """
@@ -190,11 +190,11 @@ def update_subscription_status(user_id: int, is_subscribed: bool, plan_name: str
     logger.info(f"تم تحديث حالة اشتراك المستخدم {user_id} إلى {is_subscribed} للخطة {plan_name}.")
 
 
-def get_subscription_info(user_id: int) -> dict | None:
+def getSubscriptionInfo(user_id: int) -> dict | None:
     """
     يسترجع معلومات الاشتراك للمستخدم.
     """
-    user_data = get_user_data(user_id)
+    user_data = getUserData(user_id)
     if user_data:
         return {
             'is_subscribed': bool(user_data.get('is_subscribed')),
@@ -205,18 +205,18 @@ def get_subscription_info(user_id: int) -> dict | None:
     return None
 
 
-def update_subscribed_pairs(user_id: int, pairs: list):
+def updateSubscribedPairs(user_id: int, pairs: list):
     """
     يحدث قائمة أزواج التداول المشترك بها للمستخدم.
     """
-    update_user_data(user_id, subscribed_pairs=pairs)
+    updateUserData(user_id, subscribed_pairs=pairs)
     logger.info(f"تم تحديث أزواج التداول المشترك بها للمستخدم {user_id}.")
 
 
-def update_daily_recommendations_count(user_id: int, count: int):
+def updateDailyRecommendationsCount(user_id: int, count: int):
     """
     يحدث عدد التوصيات اليومية المرسلة للمستخدم.
     """
     today = datetime.now().strftime('%Y-%m-%d')
-    update_user_data(user_id, daily_recommendations_count=count, last_recommendation_date=today)
+    updateUserData(user_id, daily_recommendations_count=count, last_recommendation_date=today)
     logger.info(f"تم تحديث عدد التوصيات اليومية للمستخدم {user_id} إلى {count}.")
