@@ -243,10 +243,10 @@ def setup_handlers(application: Application):
                 CallbackQueryHandler(select_withdraw_method, pattern='^withdraw_'),
                 CallbackQueryHandler(select_usdt_withdraw_wallet_type, pattern='^usdt_withdraw_')
             ],
-            ASKING_WITHDRAW_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, receiveWithdrawAmount)],
+            ASKING_WITHDRAW_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_withdraw_amount)],
             ASKING_WITHDRAW_ACCOUNT_DETAILS: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_withdraw_account_details)],
         },
-        fallbacks=[CommandHandler("cancel", cancelWithdraw), CallbackQueryHandler(cancelWithdraw, pattern='^cancel_withdraw$'), CallbackQueryHandler(go_to_main_menu, pattern='^main_menu$')]
+        fallbacks=[CommandHandler("cancel", cancel_withdraw), CallbackQueryHandler(cancel_withdraw, pattern='^cancel_withdraw$'), CallbackQueryHandler(go_to_main_menu, pattern='^main_menu$')]
     )
 
     invest_conv_handler = ConversationHandler(
@@ -255,38 +255,38 @@ def setup_handlers(application: Application):
             CallbackQueryHandler(start_invest_in_bot, pattern='^invest_menu$')
         ],
         states={
-            ASKING_INVEST_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_investAmount)],
+            ASKING_INVEST_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, receive_invest_amount)],
         },
-        fallbacks=[CommandHandler("cancel", cancelInvest), CallbackQueryHandler(cancelInvest, pattern='^cancel_invest$'), CallbackQueryHandler(go_to_main_menu, pattern='^main_menu$')]
+        fallbacks=[CommandHandler("cancel", cancel_invest), CallbackQueryHandler(cancel_invest, pattern='^cancel_invest$'), CallbackQueryHandler(go_to_main_menu, pattern='^main_menu$')]
     )
 
     subscription_conv_handler = ConversationHandler(
         entry_points=[
-            CommandHandler('recommendations', startSubscriptionProcess),
-            CommandHandler('my_subscription', startSubscriptionProcess),
-            CallbackQueryHandler(startSubscriptionProcess, pattern='^(recommendations_menu|my_subscription)$')
+            CommandHandler('recommendations', start_subscription_process),
+            CommandHandler('my_subscription', start_subscription_process),
+            CallbackQueryHandler(start_subscription_process, pattern='^(recommendations_menu|my_subscription)$')
         ],
         states={
-            SELECT_SUBSCRIPTION_PLAN: [CallbackQueryHandler(selectSubscriptionPlan, pattern=r'^select_plan_(monthly|annual|free)$')],
-            SELECT_TRADING_PAIRS: [CallbackQueryHandler(selectTradingPairs, pattern=r'^(pair_toggle_.+|pair_page_\d+|select_pairs_done|back_to_plans)$')],
-            CONFIRM_SUBSCRIPTION: [CallbackQueryHandler(confirmSubscription, pattern=r'^(confirm_subscription|back_to_pairs)$')]
+            SELECT_SUBSCRIPTION_PLAN: [CallbackQueryHandler(select_subscription_plan, pattern=r'^select_plan_(monthly|annual|free)$')],
+            SELECT_TRADING_PAIRS: [CallbackQueryHandler(select_trading_pairs, pattern=r'^(pair_toggle_.+|pair_page_\d+|select_pairs_done|back_to_plans)$')],
+            CONFIRM_SUBSCRIPTION: [CallbackQueryHandler(confirm_subscription, pattern=r'^(confirm_subscription|back_to_pairs)$')]
         },
-        fallbacks=[CommandHandler("cancel", cancelSubscription), CallbackQueryHandler(cancelSubscription, pattern='^cancel_subscription$'), CallbackQueryHandler(go_to_main_menu, pattern='^main_menu$')]
+        fallbacks=[CommandHandler("cancel", cancel_subscription), CallbackQueryHandler(cancel_subscription, pattern='^cancel_subscription$'), CallbackQueryHandler(go_to_main_menu, pattern='^main_menu$')]
     )
 
     admin_conv_handler = ConversationHandler(
         entry_points=[CommandHandler("admin", admin_control_panel)],
         states={
             ADMIN_MENU: [
-                CallbackQueryHandler(handleAdminCallback, pattern='^admin_'),
-                CallbackQueryHandler(adminShowUsersPaginated, pattern=r'^admin_show_users_page_'),
-                CallbackQueryHandler(adminViewUserDetails, pattern=r'^admin_view_user_')
+                CallbackQueryHandler(handle_admin_callback, pattern='^admin_'),
+                CallbackQueryHandler(admin_show_users_paginated, pattern=r'^admin_show_users_page_'),
+                CallbackQueryHandler(admin_view_user_details, pattern=r'^admin_view_user_')
             ],
-            SEND_MESSAGE_TO_ALL: [MessageHandler(filters.TEXT & ~filters.COMMAND, handleAdminMessageInput)],
-            GET_USER_ID_FOR_WALLET: [MessageHandler(filters.TEXT & ~filters.COMMAND, handleAdminMessageInput)],
-            GET_WALLET_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handleAdminMessageInput)],
-            GET_USER_ID_FOR_INVESTMENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handleAdminMessageInput)],
-            GET_INVESTMENT_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handleAdminMessageInput)],
+            SEND_MESSAGE_TO_ALL: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_admin_message_input)],
+            GET_USER_ID_FOR_WALLET: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_admin_message_input)],
+            GET_WALLET_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_admin_message_input)],
+            GET_USER_ID_FOR_INVESTMENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_admin_message_input)],
+            GET_INVESTMENT_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_admin_message_input)],
         },
         fallbacks=[CallbackQueryHandler(Show_main_menu, pattern='^go_main$')],
         map_to_parent={
@@ -306,7 +306,7 @@ def setup_handlers(application: Application):
     application.add_handler(CommandHandler("about", about_command))
     application.add_handler(CommandHandler("contact", contact_command))
 
-    application.add_handler(CallbackQueryHandler(handleTransactionCallback, pattern=r'^(approve|reject)_transaction_'))
+    application.add_handler(CallbackQueryHandler(handle_transaction_callback, pattern=r'^(approve|reject)_transaction_'))
 
     application.add_handler(CallbackQueryHandler(Show_main_menu, pattern='^go_main$'))
     application.add_handler(CallbackQueryHandler(go_to_main_menu, pattern='^main_menu$'))
@@ -320,9 +320,9 @@ def setup_handlers(application: Application):
 async def post_init_setup(application: Application):
     """دالة إعداد ما بعد التهيئة لتشغيل المهام غير المتزامنة."""
     await set_my_commands(application)
-    dailyRecommendationTime = time(hour=9, minute=0, tzinfo=pytz.timezone('Asia/Damascus'))
-    application.job_queue.run_daily(checkAndSendDailyRecommendations, dailyRecommendationTime, name="daily_recommendations")
-    logger.info(f"تم جدولة إرسال التوصيات اليومية في {dailyRecommendationTime}.")
+    daily_recommendation_time = time(hour=9, minute=0, tzinfo=pytz.timezone('Asia/Damascus'))
+    application.job_queue.run_daily(check_and_send_daily_recommendations, daily_recommendation_time, name="daily_recommendations")
+    logger.info(f"تم جدولة إرسال التوصيات اليومية في {daily_recommendation_time}.")
 
     try:
         logger.info("جاري تحميل أزواج USDT مسبقاً...")
@@ -360,21 +360,21 @@ def main():
     app = Application.builder().token(BOT_TOKEN).post_init(post_init_setup).build()
 
     app.bot_data.update({
-        'get_user_data_ref': getUserData,
-        'update_wallet_balance_ref': updateWalletBalance,
-        'update_investment_balance_ref': updateInvestmentBalance,
-        'get_all_users_data_ref': getAllUsersData,
-        'update_subscriptionStatus_ref': updateSubscriptionStatus,
-        'get_subscription_info_ref': getSubscriptionInfo,
-        'update_subscribed_pairs_ref': updateSubscribedPairs,
-        'update_daily_recommendations_count_ref': updateDailyRecommendationsCount,
-        'send_admin_notification_ref': sendAdminNotification,
+        'get_user_data_ref': get_user_data,
+        'update_wallet_balance_ref': update_wallet_balance,
+        'update_investment_balance_ref': update_investment_balance,
+        'get_all_users_data_ref': get_all_users_data,
+        'update_subscriptionStatus_ref': update_subscription_status,
+        'get_subscription_info_ref': get_subscription_info,
+        'update_subscribed_pairs_ref': update_subscribed_pairs,
+        'update_daily_recommendations_count_ref': update_daily_recommendations_count,
+        'send_admin_notification_ref': send_admin_notification,
         'ADMIN_CHAT_ID': ADMIN_CHAT_ID,
-        'get_all_usdt_pairs_ref': getAllUsdtPairs,
-        'get_crypto_data_ref': getCryptoData,
-        'generate_trading_signal_ref': generateTradingSignal,
-        'format_signal_ref': formatSignal,
-        'check_and_send_daily_recommendations_ref': checkAndSendDailyRecommendations,
+        'get_all_usdt_pairs_ref': get_all_usdt_pairs,
+        'get_crypto_data_ref': get_crypto_data,
+        'generate_trading_signal_ref': generate_trading_signal,
+        'format_signal_ref': format_signal,
+        'check_and_send_daily_recommendations_ref': check_and_send_daily_recommendations,
         'pending_transactions': {},
         'USDT_CWALLET_ADDRESS': USDT_CWALLET_ADDRESS,
         'USDT_BINANCE_ADDRESS': USDT_BINANCE_ADDRESS,
