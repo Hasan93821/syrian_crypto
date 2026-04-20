@@ -220,3 +220,87 @@ def updateDailyRecommendationsCount(user_id: int, count: int):
     today = datetime.now().strftime('%Y-%m-%d')
     updateUserData(user_id, daily_recommendations_count=count, last_recommendation_date=today)
     logger.info(f"تم تحديث عدد التوصيات اليومية للمستخدم {user_id} إلى {count}.")
+
+
+# --- أسماء بديلة (snake_case) للدوال الموجودة ---
+get_user_data = getUserData
+get_all_users_data = getAllUsersData
+update_wallet_balance = updateWalletBalance
+update_investment_balance = updateInvestmentBalance
+update_subscription_status = updateSubscriptionStatus
+get_subscription_info = getSubscriptionInfo
+update_subscribed_pairs = updateSubscribedPairs
+update_daily_recommendations_count = updateDailyRecommendationsCount
+
+
+# --- دوال معالجة محادثة التسجيل ---
+
+async def register_bot_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """يبدأ عملية التسجيل."""
+    user_id = update.effective_user.id
+    user_data = getUserData(user_id)
+
+    if user_data:
+        keyboard = [[InlineKeyboardButton("تعديل البيانات ✏️", callback_data="start_edit_registration"),
+                     InlineKeyboardButton("إلغاء ❌", callback_data="cancel_registration")]]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        message = update.message or (update.callback_query.message if update.callback_query else None)
+        await message.reply_text(escape_markdown("أنت مسجل بالفعل. هل تريد تعديل بياناتك؟", version=2),
+                                 reply_markup=reply_markup, parse_mode='MarkdownV2')
+        if update.callback_query:
+            await update.callback_query.answer()
+        return CONFIRM_EDIT
+
+    if update.message:
+        await update.message.reply_text(escape_markdown("يرجى إدخال اسمك الكامل:", version=2), parse_mode='MarkdownV2')
+    else:
+        await update.callback_query.message.reply_text(escape_markdown("يرجى إدخال اسمك الكامل:", version=2), parse_mode='MarkdownV2')
+    if update.callback_query:
+        await update.callback_query.answer()
+    return ASKING_FULL_NAME
+
+
+async def receive_full_name(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """يستقبل الاسم الكامل للمستخدم."""
+    context.user_data['full_name'] = update.message.text
+    await update.message.reply_text(escape_markdown("شكراً. الآن يرجى إدخال عنوانك:", version=2), parse_mode='MarkdownV2')
+    return ASKING_ADDRESS
+
+
+async def receive_address(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """يستقبل عنوان المستخدم."""
+    context.user_data['address'] = update.message.text
+    await update.message.reply_text(escape_markdown("شكراً. الآن يرجى إدخال رقم هاتفك:", version=2), parse_mode='MarkdownV2')
+    return ASKING_PHONE_NUMBER
+
+
+async def receive_phone_number(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """يستقبل رقم الهاتف ويحفظ البيانات."""
+    user_id = update.effective_user.id
+    phone_number = update.message.text
+    full_name = context.user_data.get('full_name')
+    address = context.user_data.get('address')
+
+    addUser(user_id, full_name, address, phone_number)
+
+    await update.message.reply_text(escape_markdown("تم حفظ بياناتك بنجاح! 🎉", version=2), parse_mode='MarkdownV2')
+    context.user_data.clear()
+    return ConversationHandler.END
+
+
+async def cancel_registration(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """يلغي عملية التسجيل."""
+    if update.callback_query:
+        await update.callback_query.answer()
+        await update.callback_query.edit_message_text(escape_markdown("تم إلغاء عملية التسجيل.", version=2), parse_mode='MarkdownV2')
+    else:
+        await update.message.reply_text(escape_markdown("تم إلغاء عملية التسجيل.", version=2), parse_mode='MarkdownV2')
+    context.user_data.clear()
+    return ConversationHandler.END
+
+
+async def start_edit_registration(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """يبدأ عملية تعديل البيانات."""
+    await update.callback_query.answer()
+    await update.callback_query.edit_message_text(escape_markdown("يرجى إدخال اسمك الكامل الجديد:", version=2), parse_mode='MarkdownV2')
+    return ASKING_FULL_NAME
