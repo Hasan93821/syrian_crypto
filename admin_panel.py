@@ -10,6 +10,8 @@ logger = logging.getLogger(__name__)
 ADMIN_MENU, SEND_MESSAGE_TO_ALL, GET_USER_ID_FOR_WALLET, GET_WALLET_AMOUNT, \
 GET_USER_ID_FOR_INVESTMENT, GET_INVESTMENT_AMOUNT = range(20, 26)
 
+ADMIN_DISTRIBUTE_PROFITS, ADMIN_GET_PROFIT_PERCENTAGE, ADMIN_MESSAGE_PAID_SUBSCRIBERS, ADMIN_GET_MESSAGE_FOR_PAID = range(100, 104)
+
 USERS_PER_PAGE = 5
 
 
@@ -26,6 +28,8 @@ async def admin_control_panel(update: Update, context: ContextTypes.DEFAULT_TYPE
         [InlineKeyboardButton("إدارة المستخدمين 👥", callback_data="admin_manage_users")],
         [InlineKeyboardButton("إدارة الرصيد 💵", callback_data="admin_manage_balance")],
         [InlineKeyboardButton("إرسال رسالة جماعية 📣", callback_data="admin_broadcast_message")],
+        [InlineKeyboardButton("توزيع الأرباح 💰", callback_data="admin_distribute_profits")],
+        [InlineKeyboardButton("رسالة للمشتركين المدفوعين 📢", callback_data="admin_message_paid_subscribers")],
         [InlineKeyboardButton("العودة للقائمة الرئيسية ↩️", callback_data="go_main")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -96,6 +100,12 @@ async def handle_admin_callback(update: Update, context: ContextTypes.DEFAULT_TY
 
     elif data == "admin_menu":
         return await admin_control_panel(update, context)
+
+    elif data == "admin_distribute_profits":
+        return await admin_distribute_profits(update, context)
+
+    elif data == "admin_message_paid_subscribers":
+        return await admin_message_paid_subscribers(update, context)
 
     return ADMIN_MENU
 
@@ -372,3 +382,102 @@ async def admin_view_user_details(update: Update, context: ContextTypes.DEFAULT_
 
     await query.edit_message_text(message_text, reply_markup=reply_markup, parse_mode='MarkdownV2')
     return ADMIN_MENU
+
+
+async def admin_distribute_profits(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """يبدأ عملية توزيع الأرباح."""
+    query = update.callback_query
+    await query.answer()
+    await query.edit_message_text(
+        escape_markdown("يرجى إدخال نسبة الأرباح المئوية (مثال: 5 لـ 5%):", version=2),
+        parse_mode='MarkdownV2'
+    )
+    return ADMIN_GET_PROFIT_PERCENTAGE
+
+
+async def admin_get_profit_percentage(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """يستقبل النسبة المئوية ويوزع الأرباح."""
+    try:
+        profit_percentage = float(update.message.text)
+        if profit_percentage <= 0:
+            await update.message.reply_text(escape_markdown("النسبة يجب أن تكون أكبر من صفر.", version=2), parse_mode='MarkdownV2')
+            return ADMIN_GET_PROFIT_PERCENTAGE
+
+        get_all_users_data_func = context.application.bot_data.get('get_all_users_data_ref')
+        update_wallet_balance_func = context.application.bot_data.get('update_wallet_balance_ref')
+
+        all_users = get_all_users_data_func()
+
+        for user_id_str, user_info in all_users.items():
+            user_id = int(user_id_str)
+            investment_balance = user_info.get('investment_balance', 0.0)
+
+            if investment_balance > 0:
+                profit_amount = investment_balance * (profit_percentage / 100)
+                update_wallet_balance_func(user_id, profit_amount)
+
+                try:
+                    await context.bot.send_message(
+                        user_id,
+                        escape_markdown(f"🎉 تم إضافة أرباح بقيمة {profit_amount:.2f} USD إلى محفظتك!", version=2),
+                        parse_mode='MarkdownV2'
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to send profit notification to user {user_id}: {e}")
+
+        await update.message.reply_text(
+            escape_markdown(f"✅ تم توزيع الأرباح بنسبة {profit_percentage}% على جميع المستثمرين.", version=2),
+            parse_mode='MarkdownV2'
+        )
+        context.user_data.clear()
+        return ConversationHandler.END
+
+    except ValueError:
+        await update.message.reply_text(escape_markdown("الرجاء إدخال رقم صحيح.", version=2), parse_mode='MarkdownV2')
+        return ADMIN_GET_PROFIT_PERCENTAGE
+
+
+async def admin_message_paid_subscribers(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """يبدأ عملية إرسال رسائل للمشتركين المدفوعين."""
+    query = update.callback_query
+    await query.answer()
+    await query.edit_message_text(
+        escape_markdown("يرجى إدخال الرسالة التي تريد إرسالها للمشتركين المدفوعين:", version=2),
+        parse_mode='MarkdownV2'
+    )
+    return ADMIN_GET_MESSAGE_FOR_PAID
+
+
+async def admin_get_message_for_paid(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+    """يستقبل الرسالة ويرسلها للمشتركين المدفوعين."""
+    message_text = update.message.text
+
+    get_all_users_data_func = context.application.bot_data.get('get_all_users_data_ref')
+    all_users = get_all_users_data_func()
+
+    sent_count = 0
+    failed_count = 0
+
+    for user_id_str, user_info in all_users.items():
+        user_id = int(user_id_str)
+        subscription_plan = user_info.get('subscription_plan')
+
+        # إرسال فقط للمشتركين في الخطط الشهرية والسنوية
+        if subscription_plan in ['monthly', 'annual']:
+            try:
+                await context.bot.send_message(
+                    user_id,
+                    escape_markdown(message_text, version=2),
+                    parse_mode='MarkdownV2'
+                )
+                sent_count += 1
+            except Exception as e:
+                logger.error(f"Failed to send message to user {user_id}: {e}")
+                failed_count += 1
+
+    await update.message.reply_text(
+        escape_markdown(f"✅ تم إرسال الرسالة إلى {sent_count} مشترك مدفوع. فشل: {failed_count}", version=2),
+        parse_mode='MarkdownV2'
+    )
+    context.user_data.clear()
+    return ConversationHandler.END
