@@ -276,7 +276,10 @@ async def confirm_subscription(update: Update, context: ContextTypes.DEFAULT_TYP
     يؤكد الاشتراك ويخصم المبلغ من رصيد المحفظة.
     """
     query = update.callback_query
-    await query.answer()
+    try:
+        await query.answer()
+    except Exception as e:
+        logger.warning(f"Error answering callback: {e}")
 
     user_id = update.effective_user.id
     chosen_plan = context.user_data.get('chosen_plan')
@@ -302,19 +305,28 @@ async def confirm_subscription(update: Update, context: ContextTypes.DEFAULT_TYP
         expiry_date = (datetime.now() + timedelta(days=365 * 10)).strftime('%Y-%m-%d %H:%M:%S')
 
     if chosen_plan != 'free' and wallet_balance < cost:
-        await query.edit_message_text(
-            escape_markdown("رصيدك في المحفظة غير كافٍ للاشتراك في هذه الخطة. يرجى إيداع المزيد من الأموال.", version=2),
-            parse_mode='MarkdownV2'
-        )
+        try:
+            await query.edit_message_text(
+                escape_markdown("رصيدك في المحفظة غير كافٍ للاشتراك في هذه الخطة. يرجى إيداع المزيد من الأموال.", version=2),
+                parse_mode='MarkdownV2'
+            )
+        except BadRequest as e:
+            logger.error(f"Failed to edit message: {e}")
+            await query.message.reply_text(
+                escape_markdown("رصيدك في المحفظة غير كافٍ للاشتراك في هذه الخطة. يرجى إيداع المزيد من الأموال.", version=2),
+                parse_mode='MarkdownV2'
+            )
         context.user_data.clear()
         return ConversationHandler.END
 
+    # تحديث البيانات
     if chosen_plan != 'free':
         update_wallet_balance_func(user_id, -cost)
 
     update_subscription_status_func(user_id, True, chosen_plan, expiry_date)
     update_subscribed_pairs_func(user_id, selected_pairs)
 
+    # إرسال رسالة التأكيد
     if chosen_plan == 'free':
         confirmation_message = escape_markdown(
             f"تهانينا! لقد تم تفعيل الخطة المجانية بنجاح. ستبدأ في تلقي {FREE_PLAN_DAILY_LIMIT} توصية يومياً.",
@@ -326,8 +338,16 @@ async def confirm_subscription(update: Update, context: ContextTypes.DEFAULT_TYP
             version=2
         )
 
-    await query.edit_message_text(confirmation_message, parse_mode='MarkdownV2')
+    try:
+        await query.edit_message_text(confirmation_message, parse_mode='MarkdownV2')
+    except BadRequest as e:
+        logger.error(f"Failed to edit confirmation message: {e}")
+        try:
+            await query.message.reply_text(confirmation_message, parse_mode='MarkdownV2')
+        except Exception as e2:
+            logger.error(f"Failed to send confirmation message: {e2}")
 
+    # جدولة إرسال التوصيات الفورية
     context.application.job_queue.run_once(
         _send_immediate_recommendations,
         when=3,
@@ -337,7 +357,6 @@ async def confirm_subscription(update: Update, context: ContextTypes.DEFAULT_TYP
 
     context.user_data.clear()
     return ConversationHandler.END
-
 
 async def _send_immediate_recommendations(context: ContextTypes.DEFAULT_TYPE):
     """
