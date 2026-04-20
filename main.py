@@ -36,8 +36,11 @@ from deposit import (SELECT_DEPOSIT_METHOD, ASKING_DEPOSIT_AMOUNT, ENTER_DEPOSIT
 
 from admin_panel import (ADMIN_MENU, SEND_MESSAGE_TO_ALL, GET_USER_ID_FOR_WALLET, GET_WALLET_AMOUNT,
                          GET_USER_ID_FOR_INVESTMENT, GET_INVESTMENT_AMOUNT,
+                         ADMIN_DISTRIBUTE_PROFITS, ADMIN_GET_PROFIT_PERCENTAGE,
+                         ADMIN_MESSAGE_PAID_SUBSCRIBERS, ADMIN_GET_MESSAGE_FOR_PAID,
                          admin_control_panel, handle_admin_callback, handle_admin_message_input,
-                         handle_transaction_callback, admin_show_users_paginated, admin_view_user_details)
+                         handle_transaction_callback, admin_show_users_paginated, admin_view_user_details,
+                         admin_get_profit_percentage, admin_get_message_for_paid)
 
 from subscriptions import (SELECT_SUBSCRIPTION_PLAN, SELECT_TRADING_PAIRS, CONFIRM_SUBSCRIPTION,
                            start_subscription_process, select_subscription_plan,
@@ -287,6 +290,10 @@ def setup_handlers(application: Application):
             GET_WALLET_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_admin_message_input)],
             GET_USER_ID_FOR_INVESTMENT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_admin_message_input)],
             GET_INVESTMENT_AMOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_admin_message_input)],
+            ADMIN_DISTRIBUTE_PROFITS: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_get_profit_percentage)],
+            ADMIN_GET_PROFIT_PERCENTAGE: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_get_profit_percentage)],
+            ADMIN_MESSAGE_PAID_SUBSCRIBERS: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_get_message_for_paid)],
+            ADMIN_GET_MESSAGE_FOR_PAID: [MessageHandler(filters.TEXT & ~filters.COMMAND, admin_get_message_for_paid)],
         },
         fallbacks=[CallbackQueryHandler(Show_main_menu, pattern='^go_main$')],
         map_to_parent={
@@ -365,6 +372,7 @@ def main():
         'update_investment_balance_ref': update_investment_balance,
         'get_all_users_data_ref': get_all_users_data,
         'update_subscriptionStatus_ref': update_subscription_status,
+        'update_subscription_status_ref': update_subscription_status,
         'get_subscription_info_ref': get_subscription_info,
         'update_subscribed_pairs_ref': update_subscribed_pairs,
         'update_daily_recommendations_count_ref': update_daily_recommendations_count,
