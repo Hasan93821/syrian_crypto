@@ -148,7 +148,7 @@ def updateUserData(user_id: int, **kwargs):
         cursor.execute(f"UPDATE users SET {', '.join(set_clause)} WHERE user_id = %s", tuple(values))
         conn.commit()
     conn.close()
-        logger.info(f"تم تحديث بيانات المستخدم {user_id}.")
+    logger.info(f"تم تحديث بيانات المستخدم {user_id}.")
 
 
 def updateWalletBalance(user_id: int, amount: float):
